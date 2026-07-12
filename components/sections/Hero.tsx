@@ -60,7 +60,7 @@ export default function Hero() {
   const prevSlide = () => setCurrent((prev) => (prev - 1 + slides.length) % slides.length)
 
   return (
-    <section className="relative w-full h-[85vh] min-h-[500px] overflow-hidden -mt-1">
+    <section className="relative w-full h-[55vh] md:h-[85vh] min-h-[400px] md:min-h-[500px] overflow-hidden -mt-1">
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -88,13 +88,13 @@ export default function Hero() {
             }}
           />
 
-          {/* Content */}
-          <div className="relative z-20 h-full flex flex-col justify-center px-22 md:px-22 max-w-5xl">
+          {/* Content with responsive padding and text constraints */}
+          <div className="relative z-20 h-full flex flex-col justify-center px-6 md:px-22 max-w-5xl">
             <motion.h1
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className={`${cormorant.className} text-4xl md:text-6xl font-semibold text-white leading-tight mb-4`}
+              className={`${cormorant.className} text-3xl md:text-6xl font-semibold text-white leading-tight mb-3 md:mb-4`}
             >
               {slides[current].titleNormal}{' '}
               <span className="text-gold-warm italic">{slides[current].titleItalic}</span>
@@ -106,7 +106,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-white/80 text-sm md:text-base font-body mb-8 leading-relaxed"
+              className="text-white/80 text-xs md:text-base font-body mb-6 md:mb-8 max-w-md md:max-w-none leading-relaxed"
             >
               {slides[current].subtitle}
             </motion.p>
@@ -117,7 +117,7 @@ export default function Hero() {
               transition={{ duration: 0.8, delay: 0.6 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-fit px-8 py-3 bg-gold-warm text-espresso font-body font-semibold text-sm tracking-wider hover:bg-gold-deep transition-colors duration-300"
+              className="w-fit px-6 py-2.5 md:px-8 md:py-3 bg-gold-warm text-espresso font-body font-semibold text-xs md:text-sm tracking-wider hover:bg-gold-deep transition-colors duration-300"
             >
               {slides[current].cta}
             </motion.button>
@@ -140,7 +140,7 @@ export default function Hero() {
       </button>
 
       {/* Dot indicators */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+      <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
         {slides.map((_, i) => (
           <button
             key={i}

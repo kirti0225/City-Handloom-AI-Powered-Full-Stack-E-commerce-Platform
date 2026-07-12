@@ -7,7 +7,7 @@ export default function BestSellers() {
   const [products, setProducts] = useState<any[]>([])
 
   useEffect(() => {
-    api.getProducts({ bestSellers: 'true', limit: '10' })
+    api.getProducts({ limit: '10' }) // Adjust query filters here if needed
       .then(d => setProducts(d.data.products || []))
       .catch(() => {})
   }, [])
@@ -15,7 +15,7 @@ export default function BestSellers() {
   return (
     <HorizontalProductSection
       title="Our BestSeller Products"
-      viewAllHref="/products?sort=popular"
+      viewAllHref="/products"
       products={products}
       bg="#fff"
     />

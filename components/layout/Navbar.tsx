@@ -124,18 +124,19 @@ export default function Navbar() {
   const [activeMenu,   setActiveMenu]   = useState<string | null>(null)
   const [searchQuery,  setSearchQuery]  = useState('')
   const [showSugg,     setShowSugg]     = useState(false)
+  const [mobileSearch, setMobileSearch] = useState(false)
   const [suggestions,  setSuggestions]  = useState<any[]>([])
   const [mounted,      setMounted]      = useState(false)
 
   const router   = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
+  const mobileInputRef = useRef<HTMLInputElement>(null)
 
   const { user, isLoggedIn, logout } = useAuthStore()
   const itemCount = useCartStore(state => state.itemCount())
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Live suggestions — fires after 2+ chars
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
       setSuggestions([])
@@ -162,6 +163,7 @@ export default function Navbar() {
   const handleSearch = (q: string) => {
     if (!q.trim()) return
     setShowSugg(false)
+    setMobileSearch(false)
     setSearchQuery('')
     router.push(`/search?q=${encodeURIComponent(q.trim())}`)
   }
@@ -203,10 +205,10 @@ export default function Navbar() {
         className="relative z-40 bg-petal/95 border-0 sticky top-0"
         onMouseLeave={() => setActiveMenu(null)}
       >
-        <div className="px-6 md:px-10 py-3">
+        <div className="px-4 md:px-10 py-3">
           <div className="flex items-center justify-between relative">
 
-            {/* Left — hamburger + nav links */}
+            {/* Left — Mobile Hamburger & Desktop Links */}
             <div className="flex items-center gap-5">
               <button className="text-mocha" onClick={() => setMenuOpen(true)}>
                 <Menu size={22} />
@@ -230,10 +232,43 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Right — search + icons */}
-            <div className="flex items-center gap-4">
+            {/* Center — Logo (Responsive Layout Adjustments) */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+              <Link href="/">
+                <div className="w-12 h-12 md:w-16 md:h-16 relative">
+                  <Image
+                  
+                    src="/images/logo.png"
+                    alt="City Handloom"
+                    width={192}
+                    height={192}
+                    className="object-cover scale-150 w-full h-full"
+                    style={{ backgroundColor: 'transparent', position: 'absolute',
+  left: '50%',
+  top: '0px',
+  // Shifts the logo left by 50% of its width to perfectly center it horizontally,
+  // and down by 40% of its height to let it overlap the navbar.
+  transform: 'translate(-50%, 30%)', 
+  zIndex: 50,}}
+                    priority
+          
+                  />
+                </div>
+              </Link>
+            </div>
 
-              {/* Search bar with suggestions */}
+            {/* Right — Search icon trigger + Action Icons */}
+            <div className="flex items-center gap-3 md:gap-4 relative z-20">
+
+              {/* Mobile View Search Icon Trigger */}
+              <button 
+                onClick={() => setMobileSearch(!mobileSearch)}
+                className="block md:hidden text-mocha hover:text-gold-deep transition-colors"
+              >
+                <Search size={20} />
+              </button>
+
+              {/* Desktop Search Component */}
               <div className="hidden md:block relative">
                 <div className="flex items-center bg-white/70 rounded-full px-4 py-2 w-96 focus-within:ring-2 focus-within:ring-gold-warm/30 transition-all">
                   <Sparkles size={14} className="text-gold-deep mr-2 flex-shrink-0" />
@@ -255,7 +290,7 @@ export default function Navbar() {
                   )}
                 </div>
 
-                {/* Suggestions dropdown */}
+                {/* Desktop Dropdown suggestions content */}
                 <AnimatePresence>
                   {showSugg && (
                     <motion.div
@@ -265,12 +300,9 @@ export default function Navbar() {
                       transition={{ duration: 0.15 }}
                       className="absolute top-full left-0 right-0 mt-2 bg-white border border-petal/60 rounded-2xl shadow-xl z-50 overflow-hidden"
                     >
-                      {/* Live product matches */}
                       {suggestions.length > 0 && (
                         <div className="py-2">
-                          <p className="px-4 py-1 text-[10px] font-bold text-mocha/35 font-body uppercase tracking-widest">
-                            Products
-                          </p>
+                          <p className="px-4 py-1 text-[10px] font-bold text-mocha/35 font-body uppercase tracking-widest">Products</p>
                           {suggestions.map((s: any) => (
                             <button
                               key={s._id}
@@ -295,8 +327,6 @@ export default function Navbar() {
                           ))}
                         </div>
                       )}
-
-                      {/* Trending — shown when no query or no results */}
                       {(searchQuery.length < 2 || suggestions.length === 0) && (
                         <div className="py-2">
                           <p className="px-4 py-1 text-[10px] font-bold text-mocha/35 font-body uppercase tracking-widest">
@@ -314,8 +344,6 @@ export default function Navbar() {
                           ))}
                         </div>
                       )}
-
-                      {/* Search all */}
                       {searchQuery.length >= 2 && (
                         <button
                           onMouseDown={() => handleSearch(searchQuery)}
@@ -334,14 +362,14 @@ export default function Navbar() {
 
               {/* Wishlist */}
               <Link href="/wishlist">
-                <button className="text-mocha hover:text-gold-deep transition-colors">
+                <button className="text-mocha hover:text-gold-deep transition-colors flex items-center">
                   <Heart size={20} />
                 </button>
               </Link>
 
-              {/* User dropdown */}
+              {/* Desktop Profile Icon Only */}
               {isLoggedIn ? (
-                <div className="relative group pb-2">
+                <div className="hidden md:block relative group pb-2">
                   <button className="w-8 h-8 rounded-full bg-gold-warm flex items-center justify-center hover:bg-gold-deep transition-colors">
                     <span className="text-xs font-bold text-espresso font-body">
                       {user?.name?.[0]?.toUpperCase() || 'U'}
@@ -352,14 +380,14 @@ export default function Navbar() {
                       <p className="px-3 py-2 text-xs font-semibold text-mocha font-body truncate border-b border-petal/60 mb-1">
                         {user?.name}
                       </p>
-                      <Link href="/account"  className="block px-3 py-2 text-xs text-mocha font-body hover:bg-petal/30 rounded-lg">My Account</Link>
-                      <Link href="/orders"   className="block px-3 py-2 text-xs text-mocha font-body hover:bg-petal/30 rounded-lg">My Orders</Link>
+                      <Link href="/account" className="block px-3 py-2 text-xs text-mocha font-body hover:bg-petal/30 rounded-lg">My Account</Link>
+                      <Link href="/orders" className="block px-3 py-2 text-xs text-mocha font-body hover:bg-petal/30 rounded-lg">My Orders</Link>
                       <Link href="/wishlist" className="block px-3 py-2 text-xs text-mocha font-body hover:bg-petal/30 rounded-lg">Wishlist</Link>
                       {user?.role === 'admin' && (
-  <Link href="/login_kit_city03" className="block px-3 py-2 text-xs text-gold-deep font-semibold font-body hover:bg-petal/30 rounded-lg">
-    ⚙ Admin Panel
-  </Link>
-)}
+                        <Link href="/login_kit_city03" className="block px-3 py-2 text-xs text-gold-deep font-semibold font-body hover:bg-petal/30 rounded-lg">
+                          ⚙ Admin Panel
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="block w-full text-left px-3 py-2 text-xs text-red-400 font-body hover:bg-red-50 rounded-lg"
@@ -370,16 +398,16 @@ export default function Navbar() {
                   </div>
                 </div>
               ) : (
-                <Link href="/login">
-                  <button className="text-mocha hover:text-gold-deep transition-colors">
+                <Link href="/login" className="hidden md:block">
+                  <button className="text-mocha hover:text-gold-deep transition-colors flex items-center">
                     <User size={20} />
                   </button>
                 </Link>
               )}
 
-              {/* Cart */}
+              {/* Cart Button */}
               <Link href="/cart">
-                <button className="text-mocha hover:text-gold-deep transition-colors relative">
+                <button className="text-mocha hover:text-gold-deep transition-colors relative flex items-center">
                   <ShoppingBag size={20} />
                   {mounted && itemCount > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-gold-warm text-espresso text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -392,7 +420,97 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* ── Mega menu dropdown ──────────────────── */}
+        {/* ── Mobile AI Interactive Search Bar Dropdown Overlay ────────────────── */}
+        <AnimatePresence>
+          {mobileSearch && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="block md:hidden bg-white border-t border-petal/60 w-full absolute top-full left-0 shadow-lg z-50 overflow-hidden"
+            >
+              <div className="p-4">
+                <div className="flex items-center bg-petal/30 rounded-full px-4 py-2">
+                  <Sparkles size={14} className="text-gold-deep mr-2 flex-shrink-0" />
+                  <input
+                    ref={mobileInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSearch(searchQuery)}
+                    placeholder='Try: "cotton bedsheet under ₹2000"'
+                    className="bg-transparent outline-none text-sm text-mocha placeholder:text-mocha/40 font-body w-full"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(''); setSuggestions([]) }}>
+                      <X size={14} className="text-mocha/50" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Search Live Suggestion Results */}
+                {searchQuery.length >= 2 && (
+                  <div className="mt-3 max-h-60 overflow-y-auto divide-y divide-petal/20">
+                    {suggestions.map((s: any) => (
+                      <div
+                        key={s._id}
+                        onClick={() => {
+                          router.push(`/product/${s.slug}`)
+                          setMobileSearch(false)
+                          setSearchQuery('')
+                        }}
+                        className="flex items-center gap-3 py-2.5 active:bg-petal/20 text-left cursor-pointer"
+                      >
+                        <div
+                          className="w-9 h-9 rounded-lg bg-cover bg-center flex-shrink-0 bg-petal/20"
+                          style={{ backgroundImage: `url('${s.images?.[0]}')` }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-mocha font-body truncate">{s.name}</p>
+                          <p className="text-[11px] text-mocha/45 font-body capitalize">
+                            {s.category} · ₹{s.price?.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {suggestions.length === 0 && (
+                      <div className="py-4 text-center text-sm text-mocha/50 font-body">
+                        No immediate matches found
+                      </div>
+                    )}
+                    <button
+                      onClick={() => handleSearch(searchQuery)}
+                      className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-gold-deep font-body mt-2 border-t border-petal/40"
+                    >
+                      <Search size={14} /> View All Results for "{searchQuery}"
+                    </button>
+                  </div>
+                )}
+
+                {/* Mobile Search Suggestions Landing Block */}
+                {searchQuery.length < 2 && (
+                  <div className="mt-4">
+                    <p className="text-[10px] font-bold text-mocha/40 font-body uppercase tracking-widest mb-2">Trending Content AI Suggestions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {trendingSearches.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSearch(s)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-petal/20 hover:bg-petal/40 transition-colors rounded-full text-xs text-mocha/80 font-body"
+                        >
+                          <TrendingUp size={11} className="text-gold-deep" />
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Desktop Mega Menu Dropdown ──────────────────── */}
         <AnimatePresence>
           {activeMenu && megaMenus[activeMenu] && (
             <motion.div
@@ -401,14 +519,12 @@ export default function Navbar() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="absolute left-0 right-0 top-full bg-white border-t border-petal/60 shadow-xl z-50"
+              className="hidden md:block absolute left-0 right-0 top-full bg-white border-t border-petal/60 shadow-xl z-50"
               onMouseEnter={() => setActiveMenu(activeMenu)}
             >
               <div className="max-w-7xl mx-auto px-8 py-6 grid grid-cols-4 gap-6">
                 <div className="col-span-3">
-                  <p className="text-[10px] font-bold text-mocha/40 font-body uppercase tracking-widest mb-4">
-                    {activeMenu}
-                  </p>
+                  <p className="text-[10px] font-bold text-mocha/40 font-body uppercase tracking-widest mb-4">{activeMenu}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {megaMenus[activeMenu].map(item => (
                       <Link key={item.label} href={item.href} onClick={() => setActiveMenu(null)}>
@@ -418,9 +534,7 @@ export default function Navbar() {
                             <p className="text-sm text-mocha font-body font-medium group-hover:text-gold-deep transition-colors">
                               {item.label}
                             </p>
-                            {item.desc && (
-                              <p className="text-xs text-mocha/45 font-body">{item.desc}</p>
-                            )}
+                            {item.desc && <p className="text-xs text-mocha/45 font-body">{item.desc}</p>}
                           </div>
                         </motion.div>
                       </Link>
@@ -430,13 +544,9 @@ export default function Navbar() {
                 <div className="col-span-1">
                   <div className="h-full min-h-[140px] rounded-xl bg-espresso/80 relative overflow-hidden p-4">
                     <p className="text-[10px] text-gold-warm font-body tracking-widest uppercase mb-1">Special Offer</p>
-                    <p className="text-sm font-semibold text-white font-body leading-snug mb-2">
-                      10% OFF on your first order
-                    </p>
+                    <p className="text-sm font-semibold text-white font-body leading-snug mb-2">10% OFF on your first order</p>
                     <Link href="/products" onClick={() => setActiveMenu(null)}>
-                      <span className="text-[11px] font-bold text-gold-warm font-body hover:underline">
-                        Shop Now →
-                      </span>
+                      <span className="text-[11px] font-bold text-gold-warm font-body hover:underline">Shop Now →</span>
                     </Link>
                   </div>
                 </div>
@@ -444,24 +554,9 @@ export default function Navbar() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Logo — centered */}
-        <Link href="/" className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-[20%] z-10">
-          <div className="w-18 h-18 md:w-18 md:h-18 relative">
-            <Image
-              src="/images/logo.png"
-              alt="City Handloom"
-              width={192}
-              height={192}
-              className="object-cover scale-150 w-full h-full"
-              style={{ backgroundColor: 'transparent' }}
-              priority
-            />
-          </div>
-        </Link>
       </nav>
 
-      {/* ── Sidebar Drawer ───────────────────────── */}
+      {/* ── Sidebar Drawer Container ───────────────────────── */}
       <AnimatePresence>
         {menuOpen && (
           <>
@@ -494,7 +589,20 @@ export default function Navbar() {
                 </button>
               </div>
 
-              {/* Search in sidebar */}
+              {/* Mobile Sidebar Interactive Account Integration Profile Section */}
+              {isLoggedIn && (
+                <div className="md:hidden px-5 py-4 bg-petal/20 border-b border-petal/40 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gold-warm flex items-center justify-center text-espresso font-bold font-body">
+                    {user?.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-mocha font-body truncate">{user?.name}</p>
+                    <p className="text-xs text-mocha/60 font-body truncate">{user?.email}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Sidebar Search */}
               <div className="px-4 py-3 border-b border-petal/60">
                 <div className="flex items-center gap-2 bg-petal/30 rounded-full px-3 py-2">
                   <Search size={14} className="text-mocha/50 flex-shrink-0" />
@@ -515,7 +623,7 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* Links */}
+              {/* Navigation Dynamic Groups Links */}
               <div className="flex-1 overflow-y-auto py-2">
                 {sidebarLinks.map(group => (
                   <div key={group.group} className="mb-2">
@@ -538,11 +646,11 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* Footer */}
+              {/* Footer Account Entry Controls */}
               <div className="px-5 py-4 border-t border-petal/60 bg-petal/20">
                 {isLoggedIn ? (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gold-warm flex items-center justify-center">
                         <span className="text-xs font-bold text-espresso">{user?.name?.[0]?.toUpperCase()}</span>
                       </div>
@@ -551,7 +659,7 @@ export default function Navbar() {
                         <p className="text-[10px] text-mocha/50 font-body">{user?.email}</p>
                       </div>
                     </div>
-                    <button onClick={handleLogout} className="text-xs text-red-400 font-body hover:text-red-600">
+                    <button onClick={handleLogout} className="text-xs text-red-400 font-body hover:text-red-600 w-full text-center md:w-auto py-2 bg-red-50 md:bg-transparent rounded-lg">
                       Logout
                     </button>
                   </div>
