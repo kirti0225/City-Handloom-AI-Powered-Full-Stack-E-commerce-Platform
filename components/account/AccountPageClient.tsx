@@ -25,6 +25,16 @@ const sidebarItems = [
   { key: 'profile',   label: 'Profile',     icon: <Settings size={16} /> },
 ]
 
+const indianStates = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli',
+  'Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+]
+
 interface Address {
   _id: string
   label: string
@@ -53,11 +63,13 @@ export default function AccountPageClient() {
     isDefault: false,
   })
 
+  // New Pincode integration states
+  const [pincodeLoading, setPincodeLoading] = useState(false)
+
   const { user, isLoggedIn, logout } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect if not logged in
     if (!isLoggedIn || !user) {
       router.push('/login')
       return
@@ -66,14 +78,12 @@ export default function AccountPageClient() {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        // Fetch in parallel — each call is independent
         const results = await Promise.allSettled([
           api.getProfile(),
           api.getOrders(),
           api.getAddresses(),
         ])
 
-        // Profile
         if (results[0].status === 'fulfilled') {
           const profileData = results[0].value.data
           setUserData(profileData)
@@ -83,12 +93,10 @@ export default function AccountPageClient() {
           })
         }
 
-        // Orders
         if (results[1].status === 'fulfilled') {
           setOrders(results[1].value.data || [])
         }
 
-        // Addresses
         if (results[2].status === 'fulfilled') {
           setAddresses(results[2].value.data || [])
         }
@@ -103,7 +111,34 @@ export default function AccountPageClient() {
     fetchData()
   }, [user, isLoggedIn])
 
+  // Auto-fill city/state when pincode hits 6 digits
+  const handlePincodeChange = async (pin: string) => {
+    setAddressForm(p => ({ ...p, pin }))
+    if (pin.length !== 6) return
+
+    setPincodeLoading(true)
+    try {
+      const res = await fetch(`/api/shiprocket/pincode?pin=${pin}`)
+      const data = await res.json()
+      if (data.data?.valid) {
+        setAddressForm(p => ({
+          ...p,
+          city: data.data.city,
+          state: data.data.state,
+        }))
+      }
+    } catch (err) {
+      console.error('Pincode check failed:', err)
+    } finally {
+      setPincodeLoading(false)
+    }
+  }
+
   const handleProfileSave = async () => {
+    if (profileForm.phone && profileForm.phone.length !== 10) {
+      alert('Phone number must be exactly 10 digits')
+      return
+    }
     setProfileSaving(true)
     try {
       const data = await api.updateProfile(profileForm)
@@ -118,8 +153,16 @@ export default function AccountPageClient() {
   }
 
   const handleAddAddress = async () => {
-    if (!addressForm.name || !addressForm.phone || !addressForm.address || !addressForm.city || !addressForm.pin) {
+    if (!addressForm.name || !addressForm.phone || !addressForm.address || !addressForm.city || !addressForm.state || !addressForm.pin) {
       alert('Please fill all required fields')
+      return
+    }
+    if (addressForm.phone.length !== 10) {
+      alert('Phone number must be exactly 10 digits')
+      return
+    }
+    if (addressForm.pin.length !== 6) {
+      alert('PIN code must be exactly 6 digits')
       return
     }
     try {
@@ -153,7 +196,6 @@ export default function AccountPageClient() {
 
   const inputClass = 'w-full border border-mocha/15 rounded-xl px-4 py-3 text-sm font-body outline-none focus:border-gold-warm transition-colors bg-white'
 
-  // Loading state
   if (isLoading) {
     return (
       <main className="bg-ivory min-h-screen">
@@ -180,7 +222,6 @@ export default function AccountPageClient() {
             transition={SPRING}
             className="h-fit"
           >
-            {/* User card */}
             <div className="bg-white rounded-2xl p-5 border border-petal/60 shadow-sm mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gold-warm flex items-center justify-center">
@@ -199,7 +240,6 @@ export default function AccountPageClient() {
               </div>
             </div>
 
-            {/* Nav */}
             <div className="bg-white rounded-2xl border border-petal/60 shadow-sm overflow-hidden">
               {sidebarItems.map((item, i) => (
                 <motion.button
@@ -233,7 +273,7 @@ export default function AccountPageClient() {
             </div>
           </motion.aside>
 
-          {/* Main content */}
+          {/* Main Content Pane */}
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 20 }}
@@ -241,7 +281,7 @@ export default function AccountPageClient() {
             transition={SPRING}
           >
 
-            {/* Overview */}
+            {/* Tab: Overview */}
             {activeTab === 'overview' && (
               <div className="space-y-5">
                 <h1 className={`${cormorant.className} text-2xl font-semibold text-mocha`}>
@@ -252,7 +292,7 @@ export default function AccountPageClient() {
                   {[
                     { label: 'Total Orders',   value: orders.length,                                         icon: <ShoppingBag size={20} />, color: 'bg-blue-50 text-blue-600' },
                     { label: 'Delivered',      value: orders.filter(o => o.status === 'delivered').length,   icon: <Check size={20} />,        color: 'bg-green-50 text-green-600' },
-                    { label: 'Saved Addresses', value: addresses.length,                                    icon: <MapPin size={20} />,       color: 'bg-amber-50 text-amber-600' },
+                    { label: 'Saved Addresses', value: addresses.length,                                     icon: <MapPin size={20} />,       color: 'bg-amber-50 text-amber-600' },
                   ].map(stat => (
                     <div key={stat.label} className="bg-white rounded-2xl border border-petal/60 shadow-sm p-5">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color}`}>
@@ -264,7 +304,6 @@ export default function AccountPageClient() {
                   ))}
                 </div>
 
-                {/* Recent orders */}
                 <div className="bg-white rounded-2xl border border-petal/60 shadow-sm p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className={`${cormorant.className} text-lg font-semibold text-mocha`}>Recent Orders</h3>
@@ -317,7 +356,7 @@ export default function AccountPageClient() {
               </div>
             )}
 
-            {/* Addresses */}
+            {/* Tab: Addresses */}
             {activeTab === 'addresses' && (
               <div>
                 <div className="flex items-center justify-between mb-5">
@@ -367,7 +406,7 @@ export default function AccountPageClient() {
                   </div>
                 )}
 
-                {/* Add address form */}
+                {/* Add Address Form Populated below */}
                 <AnimatePresence>
                   {showAddressForm && (
                     <motion.div
@@ -395,59 +434,104 @@ export default function AccountPageClient() {
                           </select>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Full Name</label>
+                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Full Name *</label>
                           <input type="text" placeholder="Full name"
                             value={addressForm.name}
                             onChange={e => setAddressForm(p => ({ ...p, name: e.target.value }))}
                             className={inputClass} />
                         </div>
                       </div>
-                      <div className="mb-3">
-                        <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Phone</label>
-                        <input type="tel" placeholder="Phone number"
-                          value={addressForm.phone}
-                          onChange={e => setAddressForm(p => ({ ...p, phone: e.target.value }))}
-                          className={inputClass} />
+
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Phone *</label>
+                          <input 
+                            type="tel" 
+                            placeholder="10-digit phone number"
+                            maxLength={10}
+                            value={addressForm.phone}
+                            onChange={e => setAddressForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                            className={inputClass} 
+                          />
+                          {addressForm.phone && addressForm.phone.length < 10 && (
+                            <p className="text-[11px] text-amber-600 font-body mt-1">{10 - addressForm.phone.length} more digits needed</p>
+                          )}
+                        </div>
+
+                        {/* PIN Code — Triggers Autofill */}
+                        <div>
+                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">PIN Code *</label>
+                          <div className="relative">
+                            <input
+                              type="tel"
+                              placeholder="6-digit PIN code"
+                              maxLength={6}
+                              value={addressForm.pin}
+                              onChange={e => handlePincodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              className={inputClass}
+                            />
+                            {pincodeLoading && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                <div className="w-4 h-4 border-2 border-gold-warm border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            )}
+                          </div>
+                          {!pincodeLoading && addressForm.city && addressForm.pin.length === 6 && (
+                            <p className="text-[11px] text-green-600 font-body mt-1">
+                              ✓ Verified Location
+                            </p>
+                          )}
+                        </div>
                       </div>
+
                       <div className="mb-3">
-                        <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Address</label>
+                        <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Address *</label>
                         <input type="text" placeholder="Street address, flat no."
                           value={addressForm.address}
                           onChange={e => setAddressForm(p => ({ ...p, address: e.target.value }))}
                           className={inputClass} />
                       </div>
-                      <div className="grid grid-cols-3 gap-3 mb-4">
+
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {/* City — Auto-filled but remains editable */}
                         <div>
-                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">City</label>
-                          <input type="text" placeholder="City"
+                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">City *</label>
+                          <input
+                            type="text"
+                            placeholder="City"
                             value={addressForm.city}
                             onChange={e => setAddressForm(p => ({ ...p, city: e.target.value }))}
-                            className={inputClass} />
+                            className={inputClass}
+                          />
                         </div>
+
+                        {/* State — Dropdown list */}
                         <div>
-                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">State</label>
-                          <input type="text" placeholder="State"
+                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">State *</label>
+                          <select
                             value={addressForm.state}
                             onChange={e => setAddressForm(p => ({ ...p, state: e.target.value }))}
-                            className={inputClass} />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">PIN</label>
-                          <input type="text" placeholder="PIN code"
-                            value={addressForm.pin}
-                            onChange={e => setAddressForm(p => ({ ...p, pin: e.target.value }))}
-                            className={inputClass} />
+                            className={inputClass}
+                          >
+                            <option value="">Select State</option>
+                            {indianStates.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
+
                       <label className="flex items-center gap-2.5 cursor-pointer mb-4">
                         <input type="checkbox" checked={addressForm.isDefault}
                           onChange={e => setAddressForm(p => ({ ...p, isDefault: e.target.checked }))}
                           className="w-4 h-4 accent-gold-warm" />
                         <span className="text-xs text-mocha/70 font-body">Set as default address</span>
                       </label>
+
                       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                         onClick={handleAddAddress}
-                        className="w-full py-3 bg-gold-warm text-espresso font-semibold text-sm font-body rounded-full hover:bg-gold-deep transition-colors">
+                        disabled={pincodeLoading}
+                        className="w-full py-3 bg-gold-warm text-espresso font-semibold text-sm font-body rounded-full hover:bg-gold-deep transition-colors disabled:opacity-50">
                         Save Address
                       </motion.button>
                     </motion.div>
@@ -456,7 +540,7 @@ export default function AccountPageClient() {
               </div>
             )}
 
-            {/* Profile settings */}
+            {/* Tab: Profile Settings */}
             {activeTab === 'profile' && (
               <div className="bg-white rounded-2xl border border-petal/60 shadow-sm p-6">
                 <h2 className={`${cormorant.className} text-2xl font-semibold text-mocha mb-6`}>
@@ -477,10 +561,17 @@ export default function AccountPageClient() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Phone Number</label>
-                    <input type="tel" value={profileForm.phone}
-                      onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
-                      placeholder="+91 98765 43210"
-                      className={inputClass} />
+                    <input 
+                      type="tel" 
+                      value={profileForm.phone}
+                      maxLength={10}
+                      onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                      placeholder="10-digit mobile number"
+                      className={inputClass} 
+                    />
+                    {profileForm.phone && profileForm.phone.length < 10 && (
+                      <p className="text-[11px] text-amber-600 font-body mt-1">{10 - profileForm.phone.length} more digits needed</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Member Since</label>

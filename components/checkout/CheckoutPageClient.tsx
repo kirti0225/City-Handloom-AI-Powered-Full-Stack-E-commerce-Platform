@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Cormorant_Garamond } from 'next/font/google'
-import { Check, CreditCard, Smartphone, Banknote } from 'lucide-react'
+import { Check, CreditCard, Smartphone, Banknote, Loader2 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
@@ -49,10 +49,15 @@ export default function CheckoutPageClient() {
   const [orderError, setOrderError] = useState('')
   const [razorpayLoaded, setRazorpayLoaded] = useState(false)
 
+  // Form State
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: user?.email || '', phone: '',
     country: 'India', city: '', address: '', postal: '',
   })
+
+  // New Pincode checking states
+  const [pincodeLoading, setPincodeLoading] = useState(false)
+  const [pincodeError, setPincodeError] = useState('')
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -80,6 +85,32 @@ export default function CheckoutPageClient() {
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }))
 
+  // Auto-fill city/state when pincode is 6 digits
+  const handlePincodeChange = async (pin: string) => {
+    update('postal', pin)
+    if (pin.length !== 6) { setPincodeError(''); return }
+
+    setPincodeLoading(true)
+    setPincodeError('')
+    try {
+      const res = await fetch(`/api/shiprocket/pincode?pin=${pin}`)
+      const data = await res.json()
+      if (data.data?.valid) {
+        setForm(prev => ({
+          ...prev,
+          city: data.data.city,
+          country: data.data.state, // mapping state into your existing 'country' field or update as needed
+        }))
+      } else {
+        setPincodeError('Invalid pincode — please check')
+      }
+    } catch {
+      setPincodeError('Could not verify pincode')
+    } finally {
+      setPincodeLoading(false)
+    }
+  }
+
   const inputClass = "w-full border border-mocha/15 rounded-xl px-4 py-3 text-sm font-body outline-none focus:border-gold-warm transition-colors bg-white"
 
   const handlePlaceOrder = async () => {
@@ -87,6 +118,14 @@ export default function CheckoutPageClient() {
 
     if (!form.firstName || !form.lastName || !form.email || !form.phone || !form.address || !form.city || !form.postal) {
       setOrderError('Please fill in all shipping details')
+      return
+    }
+    if (form.phone.length !== 10) {
+      setOrderError('Please enter a valid 10-digit phone number')
+      return
+    }
+    if (pincodeError || form.postal.length !== 6) {
+      setOrderError('Please check your PIN Code before placing the order')
       return
     }
     if (!agreed) {
@@ -185,6 +224,10 @@ export default function CheckoutPageClient() {
 
   return (
     <main className="bg-white min-h-screen">
+      {/* Dynamic spinner style element */}
+      <style>{`
+        @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+      `}</style>
       <Navbar />
 
       <div className="pt-28 md:pt-32 px-4 md:px-8 lg:px-16 pb-0">
@@ -227,9 +270,29 @@ export default function CheckoutPageClient() {
                   <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Email address</label>
                   <input type="email" placeholder="Email address" value={form.email} onChange={(e) => update('email', e.target.value)} className={inputClass} />
                 </div>
+                
+                {/* Phone with Digit Check */}
                 <div>
                   <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Phone number</label>
-                  <input type="tel" placeholder="Phone number" value={form.phone} onChange={(e) => update('phone', e.target.value)} className={inputClass} />
+                  <input 
+                    type="tel" 
+                    maxLength={10}
+                    placeholder="10-digit mobile number" 
+                    value={form.phone} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                      update('phone', val)
+                    }} 
+                    className={inputClass} 
+                  />
+                  {form.phone && form.phone.length < 10 && (
+                    <p className="text-[11px] text-amber-600 font-body mt-1">
+                      {10 - form.phone.length} more digits needed
+                    </p>
+                  )}
+                  {form.phone && form.phone.length === 10 && (
+                    <p className="text-[11px] text-green-600 font-body mt-1">✓ Valid format</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -271,23 +334,47 @@ export default function CheckoutPageClient() {
                 Shipping Information
               </h2>
               <div className="grid grid-cols-2 gap-3 mb-3">
+                
+                {/* PIN Code with Auto-fill */}
                 <div>
-                  <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Country</label>
-                  <input type="text" placeholder="Country" value={form.country} onChange={(e) => update('country', e.target.value)} className={inputClass} />
+                  <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Postal code / PIN Code</label>
+                  <div className="relative">
+                    <input 
+                      type="tel" 
+                      maxLength={6}
+                      placeholder="110001" 
+                      value={form.postal} 
+                      onChange={e => handlePincodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                      className={inputClass} 
+                    />
+                    {pincodeLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div style={{ width: 14, height: 14, border: '2px solid #D4AF37', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                      </div>
+                    )}
+                  </div>
+                  {pincodeError && <p className="text-[11px] text-red-600 font-body mt-1">{pincodeError}</p>}
+                  {!pincodeError && form.city && form.postal.length === 6 && (
+                    <p className="text-[11px] text-green-600 font-body mt-1">
+                      ✓ {form.city}, {form.country}
+                    </p>
+                  )}
                 </div>
+
                 <div>
                   <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">City</label>
                   <input type="text" placeholder="City" value={form.city} onChange={(e) => update('city', e.target.value)} className={inputClass} />
                 </div>
               </div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Address</label>
                   <input type="text" placeholder="Address" value={form.address} onChange={(e) => update('address', e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">Postal code</label>
-                  <input type="text" placeholder="Postal code" value={form.postal} onChange={(e) => update('postal', e.target.value)} className={inputClass} />
+                  <label className="text-xs font-semibold text-mocha/70 font-body block mb-1.5">State / Country</label>
+                  <input type="text" placeholder="State" value={form.country} onChange={(e) => update('country', e.target.value)} className={inputClass} />
                 </div>
               </div>
             </div>
@@ -419,7 +506,7 @@ export default function CheckoutPageClient() {
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handlePlaceOrder}
-                disabled={isPlacingOrder}
+                disabled={isPlacingOrder || pincodeLoading}
                 className="w-full py-4 bg-gold-warm text-espresso font-bold text-sm font-body rounded-full hover:bg-gold-deep transition-colors shadow-md disabled:opacity-60"
               >
                 {isPlacingOrder ? 'Processing...' : `${paymentMethod === 'cod' ? 'Place Order' : 'Pay Now'} — ₹${grandTotal.toLocaleString()}`}
