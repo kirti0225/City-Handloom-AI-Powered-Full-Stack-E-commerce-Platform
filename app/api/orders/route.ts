@@ -68,7 +68,7 @@ const product = await (Product as any).findById(item.productId)
     const deliveryFee = subtotal >= 999 ? 0 : 99
     const total = subtotal + deliveryFee
 
-    const order = await Order.create({
+    const order = await (Order as any).create({
       user: tokenUser.id,
       items: orderItems,
       shippingAddress,
@@ -79,6 +79,23 @@ const product = await (Product as any).findById(item.productId)
       paymentStatus: 'pending',
       status: 'placed',
     })
+
+try {
+  const userDoc = await (User as any).findById(tokenUser.id)
+  if (userDoc?.email) {
+    await sendOrderConfirmationEmail({
+      to:      userDoc.email,
+      name:    userDoc.name,
+      orderId: order._id.toString(),
+      items:   orderItems,
+      total:   order.total,
+      address: shippingAddress,
+    })
+    console.log('✅ Order email sent to:', userDoc.email)
+  }
+} catch (emailErr) {
+  console.error('❌ Email failed (non-critical):', emailErr)
+}
 
     try {
       const userDoc = await User.findById(tokenUser.id)

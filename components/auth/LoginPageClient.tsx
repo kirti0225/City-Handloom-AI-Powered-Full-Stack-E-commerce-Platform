@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/authStore'
 import { api } from '@/lib/api'
+import { signIn } from 'next-auth/react'
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -217,7 +218,7 @@ export default function LoginPageClient() {
                 <div className="space-y-3">
                   {/* Google — shows alert since OAuth needs backend setup */}
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    onClick={() => alert('Google Sign-In requires OAuth setup.\n\nFor now, please use email/password login.\n\nTo enable Google: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local')}
+onClick={() => signIn('google', { callbackUrl: '/account' })}
                     className="w-full py-3 border border-mocha/15 rounded-full flex items-center justify-center gap-2 text-sm text-mocha font-body hover:bg-petal/30 transition-colors">
                     <GoogleIcon /> Continue with Google
                   </motion.button>
