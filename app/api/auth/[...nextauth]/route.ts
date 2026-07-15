@@ -2,7 +2,6 @@ import NextAuth from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import connectDB from '@/lib/mongodb'
 import User from '@/lib/models/User'
-import jwt from 'jsonwebtoken'
 
 // Extend NextAuth types to recognize custom fields like 'id' and 'role'
 declare module "next-auth" {
@@ -22,41 +21,50 @@ const handler = NextAuth({
     GoogleProvider({
       clientId:     process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // Allows users to sign in via Google even if they registered with a password first
+      allowDangerousEmailAccountLinking: true, 
     }),
   ],
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
         try {
+          const targetEmail = user.email?.toLowerCase();
+          if (!targetEmail) return '/login?error=NoEmailReturned'; 
+
           await connectDB()
-          // Check if user exists
-          let dbUser = await (User as any).findOne({ email: user.email })
+          let dbUser = await (User as any).findOne({ email: targetEmail })
+          
           if (!dbUser) {
-            // Create new user from Google
+            // Create new user from Google info if they don't exist yet
             dbUser = await (User as any).create({
               name:     user.name,
-              email:    user.email,
-              password: 'google-oauth-' + Math.random().toString(36),
-              role:     'customer',
+              email:    targetEmail,
+              password: 'google-oauth-' + Math.random().toString(36).slice(2),
+              role:     'customer', // Default role
               avatar:   user.image,
             })
           }
           return true
-        } catch {
-          return false
+        } catch (err: any) {
+          console.error("❌ CRITICAL NEXTAUTH DATABASE ERROR:", err)
+          return `/login?error=${encodeURIComponent(err.message || 'DatabaseError')}`
         }
       }
       return true
     },
 
     async jwt({ token, user, account }) {
-      // Fetch user data from DB only during the initial sign-in
       if (account?.provider === 'google' && user) {
-        await connectDB()
-        const dbUser = await (User as any).findOne({ email: user.email })
-        if (dbUser) {
-          token.id   = dbUser._id.toString()
-          token.role = dbUser.role
+        try {
+          await connectDB()
+          const dbUser = await (User as any).findOne({ email: user.email?.toLowerCase() })
+          if (dbUser) {
+            token.id   = dbUser._id.toString()
+            token.role = dbUser.role
+          }
+        } catch (err) {
+          console.error("❌ JWT Callback Database Error:", err)
         }
       }
       return token
@@ -71,6 +79,12 @@ const handler = NextAuth({
     },
 
     async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      // Allows callback URLs on the same origin domain
+      else if (new URL(url).origin === baseUrl) return url
+      
+      // Directly send the user to the account page layout upon success
       return baseUrl + '/account'
     },
   },
